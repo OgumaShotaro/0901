@@ -6,26 +6,29 @@ def main():
     
     params_n = 32
     
-    seed = "cef8256742661ba3b1acb09a2fbca640abf1b072f1db84a888903ba0fff7e909"
-    pub_seed = "040daf341a78f98c36a37b3571f3ab26eb80dc782a7273b270d0f8429b572c32"
-    m = "b0d77406268a5aaf4535d948fd834c183d28a8f2a9ca4b41f5c2d513747a0966"
-    addr = "85b5abb22a57f390302fc56c94762f852101df4c3c51b7749d49be7a414b6d9e"
+    seed = "f7ca61b63ba522827ba7a75efe1d087fca7adbd26bd4546f9203231433eae07a"
+    pub_seed = "1b8b8fc1fc6a00635c6086e4657ba0fb00bb809d5a78a730d2a797606f8eeaec"
+    m = "c64f8f6e08ec73d1326f1abe53ded9f5ddcfa7b9a08eeb7b875f95e6c3c55356"
+    addr = "d352b6cfe459d6b1c3e17c233308eb326fdf7e88726627387a3cc524bdff8677"
 
     seed = bytes.fromhex(seed)
-    
     pub_seed = bytes.fromhex(pub_seed)
     m = bytes.fromhex(m)
     addr = bytes.fromhex(addr)
 
     wots_pkgen(params_n, seed, pub_seed, addr)
 
-
-
 def wots_pkgen(params_n, seed, pub_seed, addr):
     print("wots_pkgen")
-    expand_seed(params_n, seed, pub_seed, addr)
-    
 
+    params_wots_len = 67
+    params_wots_w = 16
+
+    pk = expand_seed(params_n, seed, pub_seed, addr)
+    
+    for i in range(params_wots_len):
+        addr = copy.copy(addr[:4*5] + i.to_bytes(4, 'little') + addr[4*6:])
+        gen_chain(pk[i*params_n:i*params_n+32], pk[i*params_n:i*params_n+32], 0, params_wots_w - 1, pub_seed, addr)
 
 def expand_seed(params_n, inseeds, pub_seed, addr):
     print("expand_seed")
@@ -44,6 +47,8 @@ def expand_seed(params_n, inseeds, pub_seed, addr):
         #print(buf.hex())
         outseeds = copy.copy(outseeds[:32*i] + prf_keygen(params_n, buf, inseeds))
 
+    return outseeds
+
 
 def prf_keygen(params_n, in_data, key):
     print("prf_keygen")
@@ -61,6 +66,17 @@ def prf_keygen(params_n, in_data, key):
     hash_value = hasher.hexdigest()
 
     return bytes.fromhex(hash_value)
+
+def gen_chain(out_data, in_data, start, steps, pub_seed, addr):
+    params_n = 32
+    print("gen_chain")
+    #print(out_data[:32].hex())
+    for i in range(steps):
+        addr = copy.copy(addr[:4*6] + i.to_bytes(4, 'little') + addr[4*7:])
+        thash_f(out_data, out_data, pub_seed, addr)
+
+def thash_f(out_data, in_data, pub_seed, addr):
+    print("thash_f")
 
 if __name__ == "__main__":
     main()

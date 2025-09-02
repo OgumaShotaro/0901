@@ -5,11 +5,11 @@ def main():
     print("main")
     
     params_n = 32
-    
-    seed = "ce42e5150e1fc8685cb369b53a660852f40712d4c02e534c1f2426d200f57c04"
-    pub_seed = "36a36813534b5b52fe74caa3eec4af3c1ebfcc8ed220eb2d155c279bef68f43e"
-    m = "7b0b91ca708938c6d39ff5047f0e5e6b36a7e127fef60b23fa461d6239836e86"
-    addr = "ae5976db492411b1b8c64385f5cd65685d425ed88b1d83755d49bded892c09ad"
+
+    seed    = "0cb909e41a7727d9a5410d465d5eaf856b3b3f2fc23ae15543acedf025befa5a"
+    pub_seed= "d5c506c4218fe7a05059468dbaa4a8c11be625608a371a32d9c5b2265e6d37af"
+    m       = "402dbcfedfdebb10dac57df5a72823c308f6aa272e78da05b86389863f74ac33"
+    addr    = "d6c7362709933355a33a7dbb5940ddb5b15a15c0afe8f71313e9596649e9b199"
 
     seed = bytes.fromhex(seed)
     pub_seed = bytes.fromhex(pub_seed)
@@ -19,19 +19,23 @@ def main():
     wots_pkgen(params_n, seed, pub_seed, addr)
 
 def wots_pkgen(params_n, seed, pub_seed, addr):
-    print("wots_pkgen")
+    #print("wots_pkgen")
 
     params_wots_len = 67
     params_wots_w = 16
 
     pk = expand_seed(params_n, seed, pub_seed, addr)
+    after_pk = bytearray(0)
     
     for i in range(params_wots_len):
         addr = copy.copy(addr[:4*5] + i.to_bytes(4, 'little') + addr[4*6:])
-        gen_chain(pk[i*params_n:i*params_n+32], pk[i*params_n:i*params_n+32], 0, params_wots_w - 1, pub_seed, addr)
+        after_pk = copy.copy(after_pk[:i*params_n] + gen_chain(pk[i*params_n:i*params_n+32], 0, params_wots_w - 1, pub_seed, addr))
+
+    #ここで公開鍵が完成
+    print(after_pk.hex())
 
 def expand_seed(params_n, inseeds, pub_seed, addr):
-    print("expand_seed")
+    #print("expand_seed")
     buf = bytearray(params_n + 32)
     addr = copy.copy(addr[:24] + bytearray(8))
     buf = copy.copy(pub_seed + buf[params_n:])
@@ -51,7 +55,7 @@ def expand_seed(params_n, inseeds, pub_seed, addr):
 
 
 def prf_keygen(params_n, in_data, key):
-    print("prf_keygen")
+    #print("prf_keygen")
     params_padding_len = 32
     XMSS_HASH_PADDING_PRF_KEYGEN = bytearray(28) + (4).to_bytes(4, 'little')
     #print(XMSS_HASH_PADDING_PRF_KEYGEN.hex())
@@ -67,16 +71,18 @@ def prf_keygen(params_n, in_data, key):
 
     return bytes.fromhex(hash_value)
 
-def gen_chain(out_data, in_data, start, steps, pub_seed, addr):
+def gen_chain(out_data, start, steps, pub_seed, addr):
     params_n = 32
-    print("gen_chain")
+    #print("gen_chain")
     #print(out_data[:32].hex())
     for i in range(steps):
         addr = copy.copy(addr[:4*6] + i.to_bytes(4, 'little') + addr[4*7:])
-        thash_f(out_data, out_data, pub_seed, addr)
+        out_data = thash_f(out_data, pub_seed, addr)
+
+    return out_data
 
 
-def thash_f(out_data, in_data, pub_seed, addr):
+def thash_f(in_data, pub_seed, addr):
     #print("thash_f")
 
     params_n = 32
@@ -91,12 +97,23 @@ def thash_f(out_data, in_data, pub_seed, addr):
     addr = copy.copy(addr[:28] + bytearray(4))
     addr_as_bytes = addr[0:4][::-1] + addr[4:8][::-1]+ addr[8:12][::-1]+ addr[12:16][::-1]+ addr[16:20][::-1]+ addr[20:24][::-1]+ addr[24:28][::-1]+ addr[28:32][::-1]
     #print(addr_as_bytes.hex())
-    buf = copy.copy(buf[:params_n] + prf(buf[params_padding_len:], addr_as_bytes, pub_seed) + buf[params_n + 32:])
-    print(buf.hex())
-    print()
+    buf = copy.copy(buf[:params_n] + prf(addr_as_bytes, pub_seed) + buf[params_n + 32:])
+    addr_as_bytes = addr[0:4][::-1] + addr[4:8][::-1]+ addr[8:12][::-1]+ addr[12:16][::-1]+ addr[16:20][::-1]+ addr[20:24][::-1]+ addr[24:28][::-1]+ (1).to_bytes(4, 'big')
+    
+    bitmask = copy.copy(prf(addr_as_bytes, pub_seed))
+
+    for i in range(params_n):
+        buf[params_padding_len + params_n + i] = in_data[i] ^ bitmask[i]
+
+    hasher = hashlib.sha256()
+    hasher.update(buf)
+    hash_value = hasher.hexdigest()
+
+    return bytes.fromhex(hash_value)
 
 
-def prf(out_data, in_data, key):
+
+def prf(in_data, key):
     #print("prf")
     params_n = 32
     params_padding_len = 32

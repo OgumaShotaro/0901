@@ -4,7 +4,7 @@ import hashlib
 def main():
     print("main")
     
-    params_n = 3
+    params_n = 32
     
     seed = "cef8256742661ba3b1acb09a2fbca640abf1b072f1db84a888903ba0fff7e909"
     pub_seed = "040daf341a78f98c36a37b3571f3ab26eb80dc782a7273b270d0f8429b572c32"

@@ -6,10 +6,10 @@ def main():
     
     params_n = 32
     
-    seed = "f7ca61b63ba522827ba7a75efe1d087fca7adbd26bd4546f9203231433eae07a"
-    pub_seed = "1b8b8fc1fc6a00635c6086e4657ba0fb00bb809d5a78a730d2a797606f8eeaec"
-    m = "c64f8f6e08ec73d1326f1abe53ded9f5ddcfa7b9a08eeb7b875f95e6c3c55356"
-    addr = "d352b6cfe459d6b1c3e17c233308eb326fdf7e88726627387a3cc524bdff8677"
+    seed = "ce42e5150e1fc8685cb369b53a660852f40712d4c02e534c1f2426d200f57c04"
+    pub_seed = "36a36813534b5b52fe74caa3eec4af3c1ebfcc8ed220eb2d155c279bef68f43e"
+    m = "7b0b91ca708938c6d39ff5047f0e5e6b36a7e127fef60b23fa461d6239836e86"
+    addr = "ae5976db492411b1b8c64385f5cd65685d425ed88b1d83755d49bded892c09ad"
 
     seed = bytes.fromhex(seed)
     pub_seed = bytes.fromhex(pub_seed)
@@ -75,8 +75,42 @@ def gen_chain(out_data, in_data, start, steps, pub_seed, addr):
         addr = copy.copy(addr[:4*6] + i.to_bytes(4, 'little') + addr[4*7:])
         thash_f(out_data, out_data, pub_seed, addr)
 
+
 def thash_f(out_data, in_data, pub_seed, addr):
-    print("thash_f")
+    #print("thash_f")
+
+    params_n = 32
+    params_padding_len = 32
+
+    buf = bytearray(params_padding_len + 2 * params_n)
+    bitmask = bytearray(params_n)
+    addr_as_bytes = bytes(32)
+
+    #xmss_hash_padding_f
+    buf = copy.copy(buf[:params_padding_len] + buf[params_padding_len:])
+    addr = copy.copy(addr[:28] + bytearray(4))
+    addr_as_bytes = addr[0:4][::-1] + addr[4:8][::-1]+ addr[8:12][::-1]+ addr[12:16][::-1]+ addr[16:20][::-1]+ addr[20:24][::-1]+ addr[24:28][::-1]+ addr[28:32][::-1]
+    #print(addr_as_bytes.hex())
+    buf = copy.copy(buf[:params_n] + prf(buf[params_padding_len:], addr_as_bytes, pub_seed) + buf[params_n + 32:])
+    print(buf.hex())
+    print()
+
+
+def prf(out_data, in_data, key):
+    #print("prf")
+    params_n = 32
+    params_padding_len = 32
+    buf = bytearray(params_padding_len + params_n + 32)
+    XMSS_HASH_PADDING_F = bytearray(28) + (3).to_bytes(4, 'big')
+    buf = copy.copy(XMSS_HASH_PADDING_F + key[:params_n] + in_data[:params_n])
+    #print(buf.hex())
+    hasher = hashlib.sha256()
+    hasher.update(buf)
+    hash_value = hasher.hexdigest()
+    return bytes.fromhex(hash_value)
+
+
+
 
 if __name__ == "__main__":
     main()
